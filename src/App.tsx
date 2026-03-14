@@ -5,12 +5,18 @@ import RoleSelection from './pages/RoleSelection';
 import UserDashboard from './pages/UserDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 
-import { login } from './services/api';
+// No login import needed here
 
-type AppStep = 'LANGUAGE' | 'ROLE' | 'USER_PANEL' | 'ADMIN_PANEL';
+import AdminLogin from './pages/AdminLogin';
+import UserLogin from './pages/UserLogin';
+import { getTrainees } from './services/api';
+import { traineesData as mockTrainees } from './services/mockData';
+
+type AppStep = 'LANGUAGE' | 'ROLE' | 'ADMIN_LOGIN' | 'USER_LOGIN' | 'USER_PANEL' | 'ADMIN_PANEL';
 
 const AppContent = () => {
   const [step, setStep] = useState<AppStep>('LANGUAGE');
+  const [userError, setUserError] = useState('');
   const { setLanguage } = useTranslation();
 
   const handleLanguageSelect = (lang: 'en' | 'ta' | 'hi') => {
@@ -18,21 +24,41 @@ const AppContent = () => {
     setStep('ROLE');
   };
 
-  const handleRoleSelect = async (role: 'admin' | 'user') => {
+  const handleRoleSelect = (role: 'admin' | 'user') => {
+    setStep(role === 'admin' ? 'ADMIN_LOGIN' : 'USER_LOGIN');
+  };
+
+  const handleAdminLoginSuccess = () => {
+    setStep('ADMIN_PANEL');
+  };
+
+  const handleUserLogin = async (userId: string, pass: string) => {
+    setUserError('');
     try {
-      // Demo credentials for the selected role
-      const credentials = {
-        username: role,
-        password: role === 'admin' ? 'admin123' : 'user123'
-      };
-      const res = await login(credentials);
-      if (res.data.success) {
-        setStep(role === 'admin' ? 'ADMIN_PANEL' : 'USER_PANEL');
+      let trainees = [];
+      try {
+        const res = await getTrainees();
+        trainees = res.data.length > 0 ? res.data : mockTrainees;
+      } catch (e) {
+        trainees = mockTrainees;
+      }
+
+      // Validate credentials
+      // Normalize comparison: traineeId can be numeric or string, row.id is 1-indexed fallback
+      const user = trainees.find((t: any) => {
+        const tId = t.traineeId || (10000 + t.id).toString();
+        const tPass = t.password || 'AB12'; // Default mock password if not set
+        return tId === userId && tPass === pass;
+      });
+
+      if (user) {
+        setStep('USER_PANEL');
+      } else {
+        setUserError('Invalid User ID or Password');
       }
     } catch (err) {
-      console.error("Backend login failed, using demo fallback", err);
-      // Fallback for visual demo if backend is not running
-      setStep(role === 'admin' ? 'ADMIN_PANEL' : 'USER_PANEL');
+      console.error("Login verification failed", err);
+      setUserError('System error. Please try again.');
     }
   };
 
@@ -45,6 +71,10 @@ const AppContent = () => {
       return <LanguageSelection onSelect={handleLanguageSelect} />;
     case 'ROLE':
       return <RoleSelection onSelect={handleRoleSelect} />;
+    case 'ADMIN_LOGIN':
+      return <AdminLogin onLogin={handleAdminLoginSuccess} />;
+    case 'USER_LOGIN':
+      return <UserLogin onLogin={handleUserLogin} error={userError} />;
     case 'USER_PANEL':
       return <UserDashboard onLogout={handleLogout} />;
     case 'ADMIN_PANEL':

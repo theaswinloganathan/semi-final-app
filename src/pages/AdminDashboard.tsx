@@ -409,12 +409,7 @@ const AdminDashboardHome = ({ stats, qrSession, onGenerateQR, analytics }: any) 
 
 const TraineesSection = ({ data, onAddTrainee, onDeleteTrainee }: any) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newTrainee, setNewTrainee] = useState({ name: '', group_name: 'Organic Farming', status: 'Active' });
-
-  // Helper to get initials
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
-  };
+  const [newTrainee, setNewTrainee] = useState({ email: '', group_name: 'Organic Farming', status: 'Active' });
 
   // Helper for skill level based on mock efficiency
   const getSkillInfo = (eff: string) => {
@@ -425,11 +420,29 @@ const TraineesSection = ({ data, onAddTrainee, onDeleteTrainee }: any) => {
     return { label: 'Beginner', class: 'skill-beginner' };
   };
 
+  const generateUserId = () => {
+    return Math.floor(10000 + Math.random() * 90000).toString();
+  };
+
+  const generatePassword = () => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    let pass = '';
+    for (let i = 0; i < 2; i++) pass += letters.charAt(Math.floor(Math.random() * letters.length));
+    for (let i = 0; i < 2; i++) pass += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    return pass.split('').sort(() => Math.random() - 0.5).join('');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAddTrainee(newTrainee);
+    const generated = {
+      ...newTrainee,
+      traineeId: generateUserId(),
+      password: generatePassword()
+    };
+    onAddTrainee(generated);
     setIsModalOpen(false);
-    setNewTrainee({ name: '', group_name: 'Organic Farming', status: 'Active' });
+    setNewTrainee({ email: '', group_name: 'Organic Farming', status: 'Active' });
   };
 
   return (
@@ -438,7 +451,7 @@ const TraineesSection = ({ data, onAddTrainee, onDeleteTrainee }: any) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div className="search-bar-inline">
           <Search className="icon" size={20} />
-          <input type="text" placeholder="Search trainees by name or program..." />
+          <input type="text" placeholder="Search by ID or email..." />
         </div>
         <button className="btn-add-trainee" onClick={() => setIsModalOpen(true)}>
           <Plus size={20} />
@@ -457,13 +470,13 @@ const TraineesSection = ({ data, onAddTrainee, onDeleteTrainee }: any) => {
 
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '1.5rem' }}>
-                <label className="text-sm font-bold block mb-2">Full Name</label>
+                <label className="text-sm font-bold block mb-2">Email ID</label>
                 <input 
-                  type="text" 
+                  type="email" 
                   required
-                  placeholder="e.g. Rahul Sharma"
-                  value={newTrainee.name}
-                  onChange={(e) => setNewTrainee({ ...newTrainee, name: e.target.value })}
+                  placeholder="e.g. trainee@farm.com"
+                  value={newTrainee.email}
+                  onChange={(e) => setNewTrainee({ ...newTrainee, email: e.target.value })}
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}
                 />
               </div>
@@ -503,17 +516,19 @@ const TraineesSection = ({ data, onAddTrainee, onDeleteTrainee }: any) => {
       )}
 
       {/* Table Card */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
         <table style={{ background: 'white' }}>
           <thead>
             <tr>
-              <th style={{ background: '#f8fafc', padding: '1.25rem' }}>TRAINEE NAME</th>
-              <th style={{ background: '#f8fafc', padding: '1.25rem' }}>PROGRAM</th>
+              <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '120px' }}>USER ID</th>
+              <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '200px' }}>EMAIL ID</th>
+              <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '120px' }}>PASSWORD</th>
+              <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '150px' }}>PROGRAM</th>
               <th style={{ background: '#f8fafc', padding: '1.25rem' }}>TASKS</th>
-              <th style={{ background: '#f8fafc', padding: '1.25rem' }}>SKILL LEVEL</th>
-              <th style={{ background: '#f8fafc', padding: '1.25rem' }}>ATTENDANCE</th>
-              <th style={{ background: '#f8fafc', padding: '1.25rem' }}>STATUS</th>
-              <th style={{ background: '#f8fafc', padding: '1.25rem' }}>ACTIONS</th>
+              <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '140px' }}>SKILL LEVEL</th>
+              <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '160px' }}>ATTENDANCE</th>
+              <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '120px' }}>STATUS</th>
+              <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '100px' }}>ACTIONS</th>
             </tr>
           </thead>
           <tbody>
@@ -523,10 +538,11 @@ const TraineesSection = ({ data, onAddTrainee, onDeleteTrainee }: any) => {
               return (
                 <tr key={row.id}>
                   <td style={{ padding: '1.25rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <div className="avatar">{getInitials(row.name)}</div>
-                      <span style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>{row.name}</span>
-                    </div>
+                    <span style={{ fontWeight: 800, color: 'var(--primary)' }}>#{row.traineeId || (10000 + row.id)}</span>
+                  </td>
+                  <td style={{ padding: '1.25rem', color: '#64748b', fontWeight: 600 }}>{row.email || `${row.name?.toLowerCase().replace(' ', '')}@farm.com`}</td>
+                  <td style={{ padding: '1.25rem' }}>
+                    <code style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', letterSpacing: '1px' }}>{row.password || 'AB12'}</code>
                   </td>
                   <td style={{ padding: '1.25rem', color: '#64748b' }}>{row.group_name || "Organic Farming"}</td>
                   <td style={{ padding: '1.25rem', color: '#64748b' }}>{Math.floor(Math.random() * 30) + 5}</td>

@@ -1,9 +1,9 @@
 export const traineesData = [
-  { id: 1, name: "Arun Kumar", group: "Morning A", efficiency: "92%", status: "Active" },
-  { id: 2, name: "Priya S.", group: "Evening B", efficiency: "88%", status: "On Leave" },
-  { id: 3, name: "Karthik R.", group: "Morning A", efficiency: "95%", status: "Active" },
-  { id: 4, name: "Lakshmi M.", group: "Morning B", efficiency: "79%", status: "Training" },
-  { id: 5, name: "Rahul Dev", group: "Evening B", efficiency: "91%", status: "Active" },
+  { id: 1, traineeId: "10001", name: "Arun Kumar", email: "arunkumar@farm.com", password: "AB12", group: "Morning A", efficiency: "92%", status: "Active" },
+  { id: 2, traineeId: "10002", name: "Priya S.", email: "priyas.@farm.com", password: "AB12", group: "Evening B", efficiency: "88%", status: "On Leave" },
+  { id: 3, traineeId: "10003", name: "Karthik R.", email: "karthikr.@farm.com", password: "AB12", group: "Morning A", efficiency: "95%", status: "Active" },
+  { id: 4, traineeId: "10004", name: "Lakshmi M.", email: "lakshmim.@farm.com", password: "AB12", group: "Morning B", efficiency: "79%", status: "Training" },
+  { id: 5, traineeId: "10005", name: "Rahul Dev", email: "rahuldev@farm.com", password: "AB12", group: "Evening B", efficiency: "91%", status: "Active" },
 ];
 
 export const tasksData = [
@@ -60,4 +60,12 @@ export const quizQuestions = [
     options: ["New Plant Killer", "Nitrogen-Phosphorus-Potassium", "Natural-Pure-Kind", "None"], 
     correct: 1 
   }
+];
+
+export const notificationsData = [
+  { id: 1, title: "New Task Assigned", message: "Irrigation check scheduled for Zone A", time: "2 mins ago", type: "task" },
+  { id: 2, title: "Performance Update", message: "Your efficiency has improved by 5%", time: "1 hour ago", type: "alert" },
+  { id: 3, title: "System Message", message: "New training modules are now active", time: "3 hours ago", type: "system" },
+  { id: 4, title: "Trainee Update", message: "Rahul Dev marked attendance for today", time: "5 hours ago", type: "trainee" },
+  { id: 5, title: "Harvest Alert", message: "Tomatoes in Zone B are ready for harvest", time: "1 day ago", type: "alert" },
 ];

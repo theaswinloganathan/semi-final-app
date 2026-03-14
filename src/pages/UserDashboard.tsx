@@ -386,7 +386,7 @@ const AttendanceSection = ({ data, rate }: any) => {
 };
 
 const ModulesSection = ({ data }: any) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [step, setStep] = useState(0);
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
@@ -397,6 +397,15 @@ const ModulesSection = ({ data }: any) => {
   const speak = (text: string) => {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Set speech language based on selection
+    const langMap: Record<string, string> = { 'en': 'en-US', 'ta': 'ta-IN', 'hi': 'hi-IN' };
+    utterance.lang = langMap[lang] || 'en-US';
+    
+    // Optimized for clear communication
+    utterance.rate = 0.9;
+    utterance.pitch = 1.0;
+
     utterance.onstart = () => setIsReading(true);
     utterance.onend = () => setIsReading(false);
     window.speechSynthesis.speak(utterance);
@@ -414,11 +423,18 @@ const ModulesSection = ({ data }: any) => {
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
+      // Ensure any previous instance is cleaned up
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch(e) {}
+      }
+
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'en-US';
-
+      
+      // Configure recognition language
+      const langMap: Record<string, string> = { 'en': 'en-US', 'ta': 'ta-IN', 'hi': 'hi-IN' };
+      recognitionRef.current.lang = langMap[lang] || 'en-US';
       recognitionRef.current.maxAlternatives = 1;
 
       recognitionRef.current.onresult = (event: any) => {
@@ -426,42 +442,90 @@ const ModulesSection = ({ data }: any) => {
         const result = event.results[last][0].transcript.toLowerCase().trim();
         setQuizTranscript(result);
         
-        // Strict command matching
+        // Multi-language command mapping
         const optionMap: Record<string, number> = {
-          'option 1': 0, 'option one': 0,
-          'option 2': 1, 'option two': 1,
-          'option 3': 2, 'option three': 2,
-          'option 4': 3, 'option four': 3
+          // English
+          'option 1': 0, 'option one': 0, '1': 0, 'one': 0,
+          'option 2': 1, 'option two': 1, '2': 1, 'two': 1,
+          'option 3': 2, 'option three': 2, '3': 2, 'three': 2,
+          'option 4': 3, 'option four': 3, '4': 3, 'four': 3,
+          // Tamil
+          'விருப்பம் 1': 0, 'விருப்பம் ஒன்று': 0, 'ஒன்று': 0, 'ஒன்னு': 0,
+          'விருப்பம் 2': 1, 'விருப்பம் இரண்டு': 1, 'இரண்டு': 1, 'ரெண்டு': 1,
+          'விருப்பம் 3': 2, 'விருப்பம் மூன்று': 2, 'மூன்று': 2, 'மூனு': 2,
+          'விருப்பம் 4': 3, 'விருப்பம் நான்கு': 3, 'நான்கு': 3, 'நாலு': 3,
+          // Hindi
+          'विकल्प 1': 0, 'विकल्प एक': 0, 'एक': 0,
+          'विकल्प 2': 1, 'विकल्प दो': 1, 'दो': 1,
+          'विकल्प 3': 2, 'विकल्प तीन': 2, 'तीन': 2,
+          'विकल्प 4': 3, 'विकल्प चार': 3, 'चार': 3
         };
 
-        if (optionMap[result] !== undefined) {
-          const idx = optionMap[result];
+        let selectedIdx: number | undefined = undefined;
+        // Search for specific keywords in recognized text
+        for (const [key, val] of Object.entries(optionMap)) {
+          if (result === key || result.includes(key)) {
+            selectedIdx = val;
+            break;
+          }
+        }
+
+        if (selectedIdx !== undefined) {
           const q = data[step];
-          if (q && q.options[idx] !== undefined) {
-            speak(`Option ${idx + 1} selected.`);
-            setTimeout(() => handleAnswer(idx === q.correct), 1000);
+          if (q && q.options[selectedIdx] !== undefined) {
+            const feedback = lang === 'ta' ? `விருப்பம் ${selectedIdx + 1}` : 
+                            lang === 'hi' ? `विकल्प ${selectedIdx + 1}` : 
+                            `Option ${selectedIdx + 1}`;
+            speak(feedback);
+            setTimeout(() => handleAnswer(selectedIdx === q.correct), 1000);
           }
-        } else {
-          // If the recognition caught something but it doesn't match a valid quiz command
-          if (result.length > 0) {
-            speak("Please say Option 1, Option 2, Option 3, or Option 4.");
-          }
+        } else if (result.length > 5) {
+          // Provide guidance if something long but non-command was said
+          const guidance = lang === 'ta' ? "தயவுசெய்து விருப்பம் 1 முதல் 4 வரை சொல்லவும்" :
+                          lang === 'hi' ? "कृपया विकल्प 1 से 4 तक कहें" :
+                          "Please say Option 1, 2, 3, or 4.";
+          speak(guidance);
+        }
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Quiz Audio Service Error:', event.error);
+        // Recovery mechanism for intermittent interruptions
+        if (['network', 'no-speech', 'audio-capture'].includes(event.error)) {
+          setTimeout(() => {
+            if (!finished) {
+              try { recognitionRef.current?.start(); } catch(e) {}
+            }
+          }, 1500);
         }
       };
 
       recognitionRef.current.onend = () => {
-        if (!finished) recognitionRef.current?.start();
+        // Essential for continuous listening experience
+        if (!finished) {
+          try {
+            recognitionRef.current?.start();
+          } catch (e) {
+            console.error("Mic restart failed", e);
+          }
+        }
       };
 
       try {
         recognitionRef.current.start();
       } catch (e) {
-        console.error("Auto-start recognition failed", e);
+        console.error("Initial Mic activation failed", e);
       }
     }
 
-    return () => recognitionRef.current?.stop();
-  }, [step, finished]);
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.stop();
+      }
+    };
+  }, [step, finished, lang]);
 
   useEffect(() => {
     if (!finished && data[step]) {
