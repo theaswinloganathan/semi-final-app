@@ -44,7 +44,21 @@ import {
   cropStatusData as mockCrops, 
   inventoryData as mockInventory
 } from '../services/mockData';
-import { getDashboardStats, getTrainees, addTrainee, deleteTrainee, getTasks, addTask, updateTask, deleteTask, getCrops, getInventory } from '../services/api';
+import { QRCodeSVG } from 'qrcode.react';
+import { 
+  getDashboardStats, 
+  getTrainees, 
+  addTrainee, 
+  deleteTrainee, 
+  getTasks, 
+  addTask, 
+  updateTask, 
+  deleteTask, 
+  getCrops, 
+  getInventory,
+  generateAttendanceSession,
+  getAttendanceAnalytics 
+} from '../services/api';
 
 // Register ChartJS components
 ChartJS.register(
@@ -77,6 +91,8 @@ const AdminDashboard = ({ onLogout }: Props) => {
     type: 'trainee',
     id: null
   });
+  const [qrSession, setQrSession] = useState<any>(null);
+  const [attendanceAnalytics, setAttendanceAnalytics] = useState<any>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -102,7 +118,16 @@ const AdminDashboard = ({ onLogout }: Props) => {
         setInventory(mockInventory);
       }
     };
+    const fetchAnalytics = async () => {
+      try {
+        const res = await getAttendanceAnalytics();
+        setAttendanceAnalytics(res.data);
+      } catch (err) {
+        console.error("Failed to fetch attendance analytics", err);
+      }
+    };
     fetchData();
+    fetchAnalytics();
   }, []);
 
   const menuItems = [
@@ -195,6 +220,16 @@ const AdminDashboard = ({ onLogout }: Props) => {
     productionYield: stats?.productionYield || 0
   };
 
+  const handleGenerateQR = async () => {
+    try {
+      const res = await generateAttendanceSession();
+      setQrSession(res.data);
+      // Refresh analytics after generating session? Maybe not needed yet.
+    } catch (err) {
+      console.error("Failed to generate attendance session", err);
+    }
+  };
+
   return (
     <DashboardLayout
       menuItems={menuItems}
@@ -203,7 +238,7 @@ const AdminDashboard = ({ onLogout }: Props) => {
       onLogout={onLogout}
       userType="Admin"
     >
-      {activePage === 'dashboard' && <AdminDashboardHome stats={computedStats} />}
+      {activePage === 'dashboard' && <AdminDashboardHome stats={computedStats} qrSession={qrSession} onGenerateQR={handleGenerateQR} analytics={attendanceAnalytics} />}
       {activePage === 'trainees' && <TraineesSection data={trainees} onAddTrainee={handleAddTrainee} onDeleteTrainee={handleDeleteTrainee} />}
       {activePage === 'farmTask' && <FarmTaskSection data={tasks} trainees={trainees} onUpdateTask={handleUpdateTaskStatus} onAddTask={handleAddTask} onDeleteTask={handleDeleteTask} />}
       {activePage === 'cropMonitoring' && <CropMonitoringSection data={crops} />}
@@ -248,7 +283,7 @@ const AdminDashboard = ({ onLogout }: Props) => {
 
 // --- Sections ---
 
-const AdminDashboardHome = ({ stats }: any) => {
+const AdminDashboardHome = ({ stats, qrSession, onGenerateQR, analytics }: any) => {
   const { t } = useTranslation();
   
   const lineData = {
@@ -263,6 +298,16 @@ const AdminDashboardHome = ({ stats }: any) => {
     }]
   };
 
+  const attendanceChartData = {
+    labels: analytics?.dailyStats?.map((s: any) => s.date.split('T')[0]).reverse() || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+    datasets: [{ 
+      label: 'Attendance Count',
+      data: analytics?.dailyStats?.map((s: any) => s.count).reverse() || [95, 88, 92, 90, 85], 
+      backgroundColor: '#10b981', 
+      borderRadius: 8 
+    }]
+  };
+
   return (
     <div>
       <div className="grid-stats">
@@ -270,6 +315,43 @@ const AdminDashboardHome = ({ stats }: any) => {
         <StatCard label={t.activeTasks} val={stats?.activeTasks || "28"} icon={Briefcase} color="#10b981" />
         <StatCard label="Crops Monitored" val={stats?.cropsMonitored || "12"} icon={Sprout} color="#f59e0b" />
         <StatCard label={t.productionYield} val={`${stats?.productionYield || 850} kg`} icon={TrendingUp} color="#6366f1" />
+      </div>
+
+      <div style={{ marginBottom: '2rem' }}>
+        <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2rem' }}>
+          <div>
+            <h3 className="text-xl font-black mb-2">Attendance QR Session</h3>
+            <p className="text-slate-500 mb-4">Generate a unique QR code for trainees to scan and mark their attendance for today's session.</p>
+            {!qrSession ? (
+              <button 
+                className="btn btn-primary" 
+                onClick={onGenerateQR}
+                style={{ background: '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <Plus size={20} />
+                Generate Attendance QR
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: '#10b981', fontWeight: 'bold' }}>
+                <Clock size={20} />
+                <span>Session Active (Expires at {new Date(qrSession.expiresAt).toLocaleTimeString()})</span>
+                <button 
+                  className="btn-outline" 
+                  onClick={onGenerateQR}
+                  style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                >
+                  Regenerate
+                </button>
+              </div>
+            )}
+          </div>
+          {qrSession && (
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '1rem', border: '4px solid #10b981', boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.2)' }}>
+              <QRCodeSVG value={qrSession.token} size={150} />
+              <p style={{ textAlign: 'center', marginTop: '0.5rem', fontWeight: 'bold', fontSize: '0.75rem', color: '#64748b' }}>SCAN TO MARK ATTENDANCE</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid-charts">
@@ -280,10 +362,7 @@ const AdminDashboardHome = ({ stats }: any) => {
         <div className="card">
           <h3 className="text-lg font-bold mb-6">{t.attendanceAnalytics}</h3>
           <Bar 
-            data={{
-              labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-              datasets: [{ data: [95, 88, 92, 90, 85], backgroundColor: '#3b82f6', borderRadius: 8 }]
-            }}
+            data={attendanceChartData}
             options={{ responsive: true, plugins: { legend: { display: false } } }}
           />
         </div>

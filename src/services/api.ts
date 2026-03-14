@@ -35,4 +35,9 @@ export const getReports = () => api.get('/reports');
 export const deleteTrainee = (id: number) => api.delete(`/trainees/${id}`);
 export const deleteTask = (id: number) => api.delete(`/tasks/${id}`);
 
+// Attendance QR & Analytics
+export const generateAttendanceSession = () => api.post('/attendance/session');
+export const scanAttendance = (data: { userId: number, token: string }) => api.post('/attendance/scan', data);
+export const getAttendanceAnalytics = () => api.get('/attendance/analytics');
+
 export default api;

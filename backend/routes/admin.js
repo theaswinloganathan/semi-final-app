@@ -164,4 +164,33 @@ router.get('/reports', async (req, res) => {
   }
 });
 
+// Attendance QR Generation
+router.post('/attendance/session', async (req, res) => {
+  const sessionToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+  try {
+    const [result] = await pool.query('INSERT INTO attendance_sessions (session_token, expires_at) VALUES (?, ?)', [sessionToken, expiresAt]);
+    res.json({ id: result.insertId, token: sessionToken, expiresAt });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Analytics
+router.get('/attendance/analytics', async (req, res) => {
+  try {
+    const [totalTrainees] = await pool.query('SELECT COUNT(*) as count FROM users WHERE role = "user"');
+    const [dailyStats] = await pool.query(`
+      SELECT date, COUNT(*) as count 
+      FROM attendance 
+      GROUP BY date 
+      ORDER BY date DESC 
+      LIMIT 7
+    `);
+    res.json({ totalTrainees: totalTrainees[0].count, dailyStats });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

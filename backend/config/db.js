@@ -62,15 +62,28 @@ const initDB = async () => {
       )
     `);
 
+    // Attendance Sessions Table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS attendance_sessions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        session_token VARCHAR(255) NOT NULL UNIQUE,
+        expires_at DATETIME NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Attendance Table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS attendance (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT,
+        session_id INT,
         date DATE,
+        time TIME,
         status VARCHAR(50),
         activity VARCHAR(255),
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (session_id) REFERENCES attendance_sessions(id) ON DELETE SET NULL
       )
     `);
 

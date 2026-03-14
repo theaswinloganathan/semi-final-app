@@ -7,12 +7,39 @@ import {
   UploadCloud,
   Trophy,
   ChevronLeft,
-  LogOut
+  LogOut,
+  Camera
 } from 'lucide-react';
+import { 
+  Chart as ChartJS, 
+  CategoryScale, 
+  LinearScale, 
+  PointElement, 
+  LineElement, 
+  BarElement,
+  Title, 
+  Tooltip, 
+  Legend, 
+  ArcElement
+} from 'chart.js';
+import { Line, Doughnut } from 'react-chartjs-2';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useTranslation } from '../hooks/useTranslation';
 import DashboardLayout from '../components/DashboardLayout';
 import { userAttendanceData as mockAttendanceData, quizQuestions as mockQuizQuestions } from '../services/mockData';
-import { getAttendance, getModules, getSettings, detectCrop, updateSettings } from '../services/api';
+import { getAttendance, scanAttendance, getModules, getSettings, detectCrop, updateSettings } from '../services/api';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface Props {
   onLogout: () => void;
@@ -161,42 +188,132 @@ const AIDetectionSection = () => {
 
 const AttendanceSection = ({ data, rate }: any) => {
   const { t } = useTranslation();
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanStatus, setScanStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const startScanner = () => {
+    setIsScanning(true);
+    setScanStatus('idle');
+    setTimeout(() => {
+      const scanner = new Html5QrcodeScanner(
+        "qr-reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        /* verbose= */ false
+      );
+      scanner.render(async (decodedText) => {
+        scanner.clear();
+        setIsScanning(false);
+        setScanStatus('loading');
+        try {
+          await scanAttendance({ userId: 2, token: decodedText });
+          setScanStatus('success');
+          window.location.reload(); // Refresh to see updated attendance
+        } catch (err: any) {
+          setScanStatus('error');
+          setErrorMsg(err.response?.data?.error || "Scanning failed");
+        }
+      }, (errorMessage) => {
+        // console.warn(errorMessage);
+      });
+    }, 100);
+  };
+
+  const lineData = {
+    labels: data.slice(-5).map((d: any) => d.date).reverse(),
+    datasets: [{
+      label: 'Presence',
+      data: data.slice(-5).map((d: any) => d.status === 'Present' ? 1 : 0).reverse(),
+      borderColor: '#10b981',
+      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+      fill: true,
+      tension: 0.4
+    }]
+  };
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem' }}>
-      <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
-        <table style={{ width: '100%' }}>
-          <thead>
-            <tr>
-              <th>{t.date}</th>
-              <th>{t.status}</th>
-              <th>Activity</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((row: any, idx: number) => (
-              <tr key={idx}>
-                <td>{row.date}</td>
-                <td>
-                  <span className={`badge ${row.status === 'Present' ? 'badge-success' : 'badge-danger'}`}>
-                    {row.status}
-                  </span>
-                </td>
-                <td style={{ color: 'var(--text-muted)' }}>{row.activity}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2rem' }}>
+        <div>
+          <h3 className="text-xl font-black mb-2">Daily Attendance</h3>
+          <p className="text-slate-500 mb-6">Scan the QR code displayed on the Admin's screen to mark your attendance for today.</p>
+          {!isScanning ? (
+            <button 
+              className="btn btn-primary" 
+              onClick={startScanner}
+              style={{ background: '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <Camera size={20} />
+              Open QR Scanner
+            </button>
+          ) : (
+            <button 
+              className="btn-outline" 
+              onClick={() => setIsScanning(false)}
+            >
+              Cancel Scan
+            </button>
+          )}
+          {scanStatus === 'loading' && <p className="mt-4 text-blue-500 font-bold">Processing attendance...</p>}
+          {scanStatus === 'success' && <p className="mt-4 text-green-500 font-bold">Attendance marked successfully!</p>}
+          {scanStatus === 'error' && <p className="mt-4 text-red-500 font-bold">{errorMsg}</p>}
+        </div>
+        {isScanning && (
+          <div id="qr-reader" style={{ width: '300px', borderRadius: '1rem', overflow: 'hidden', border: '4px solid #10b981' }}></div>
+        )}
       </div>
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-        <h4 className="font-bold mb-6">{t.attendanceRate}</h4>
-        <div style={{ position: 'relative', width: '150px', height: '150px' }}>
-          <svg style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
-            <circle cx="75" cy="75" r="65" stroke="#f1f5f9" strokeWidth="12" fill="none" />
-            <circle cx="75" cy="75" r="65" stroke="var(--primary)" strokeWidth="12" fill="none" strokeDasharray="408" strokeDashoffset="40.8" />
-          </svg>
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: '2rem', fontWeight: 900 }}>{rate}%</span>
-            <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{rate > 80 ? 'Excellent' : 'Good'}</span>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '2rem' }}>
+        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+          <table style={{ width: '100%' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc' }}>
+                <th style={{ padding: '1.25rem' }}>{t.date}</th>
+                <th style={{ padding: '1.25rem' }}>{t.status}</th>
+                <th style={{ padding: '1.25rem' }}>Activity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row: any, idx: number) => (
+                <tr key={idx}>
+                  <td style={{ padding: '1.25rem' }}>{row.date}</td>
+                  <td style={{ padding: '1.25rem' }}>
+                    <span className={`badge ${row.status === 'Present' ? 'badge-success' : 'badge-danger'}`}>
+                      {row.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '1.25rem', color: 'var(--text-muted)' }}>{row.activity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div className="card" style={{ textAlign: 'center' }}>
+            <h4 className="font-bold mb-4">{t.attendanceRate}</h4>
+            <div style={{ height: '200px' }}>
+              <Doughnut 
+                data={{
+                  labels: ['Present', 'Absent'],
+                  datasets: [{
+                    data: [rate, 100 - rate],
+                    backgroundColor: ['#10b981', '#f1f5f9'],
+                    borderWidth: 0
+                  }]
+                }}
+                options={{ cutout: '75%', plugins: { legend: { display: false } } }}
+              />
+              <div style={{ marginTop: '-120px', marginBottom: '80px' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 900 }}>{rate}%</div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b' }}>STRENGTH</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <h4 className="font-bold mb-4">Activity Trend</h4>
+            <Line data={lineData} options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { display: false } } }} />
           </div>
         </div>
       </div>

@@ -74,4 +74,37 @@ router.post('/settings', async (req, res) => {
   }
 });
 
+// QR Attendance Scanning
+router.post('/attendance/scan', async (req, res) => {
+  const { userId, token } = req.body;
+  const today = new Date().toISOString().split('T')[0];
+  const currentTime = new Date().toTimeString().split(' ')[0];
+
+  try {
+    // 1. Verify Session Token
+    const [sessions] = await pool.query('SELECT * FROM attendance_sessions WHERE session_token = ? AND expires_at > NOW()', [token]);
+    if (sessions.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired QR code' });
+    }
+
+    const sessionId = sessions[0].id;
+
+    // 2. Check if already marked for this session
+    const [existing] = await pool.query('SELECT * FROM attendance WHERE user_id = ? AND session_id = ?', [userId, sessionId]);
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Attendance already marked for this session' });
+    }
+
+    // 3. Mark Attendance
+    await pool.query(
+      'INSERT INTO attendance (user_id, session_id, date, time, status, activity) VALUES (?, ?, ?, ?, ?, ?)',
+      [userId, sessionId, today, currentTime, 'Present', 'QR Scan Session']
+    );
+
+    res.json({ success: true, message: 'Attendance marked successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
