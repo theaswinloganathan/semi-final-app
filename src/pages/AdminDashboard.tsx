@@ -916,14 +916,19 @@ const CropMonitoringSection = ({ data, onAddCrop, onDeleteCrop }: any) => {
     'eggplant': '/crops/eggplant.png',
     'brinjal': '/crops/eggplant.png',
     'cabbage': '/crops/cabbage.png',
+    'potato': '/crops/potato.png',
   };
 
   const getAutoImage = (name: string) => {
-    const lowerName = name.toLowerCase();
+    const lowerName = name.toLowerCase().trim();
+    if (!lowerName) return '';
+
     for (const [key, value] of Object.entries(cropImageMap)) {
       if (lowerName.includes(key)) return value;
     }
-    return ''; // Placeholder
+    
+    // Dynamic online fallback for unknown crops
+    return `https://loremflickr.com/400/300/agriculture,${encodeURIComponent(lowerName)}/all`;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
