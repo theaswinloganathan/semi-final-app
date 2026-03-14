@@ -166,7 +166,7 @@ router.get('/reports', async (req, res) => {
 
 // Attendance QR Generation
 router.post('/attendance/session', async (req, res) => {
-  const sessionToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  const sessionToken = (Math.random().toString(36).substring(2, 12) + Math.random().toString(36).substring(2, 12)).toUpperCase();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
   try {
     const [result] = await pool.query('INSERT INTO attendance_sessions (session_token, expires_at) VALUES (?, ?)', [sessionToken, expiresAt]);

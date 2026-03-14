@@ -195,26 +195,51 @@ const AttendanceSection = ({ data, rate }: any) => {
   const startScanner = () => {
     setIsScanning(true);
     setScanStatus('idle');
+    setErrorMsg('');
+    
     setTimeout(() => {
       const scanner = new Html5QrcodeScanner(
         "qr-reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        },
         /* verbose= */ false
       );
-      scanner.render(async (decodedText) => {
-        scanner.clear();
-        setIsScanning(false);
-        setScanStatus('loading');
+
+      const onScanSuccess = async (decodedText: string) => {
+        const cleanToken = decodedText.trim();
+        console.log("QR Code Decoded:", cleanToken);
+        
         try {
-          await scanAttendance({ userId: 2, token: decodedText });
-          setScanStatus('success');
-          window.location.reload(); // Refresh to see updated attendance
+          // Stop scanning immediately to prevent duplicate calls
+          await scanner.clear();
+          setIsScanning(false);
+          setScanStatus('loading');
+          
+          const res = await scanAttendance({ userId: 2, token: cleanToken });
+          if (res.data.success) {
+            setScanStatus('success');
+            setTimeout(() => window.location.reload(), 1500);
+          } else {
+            throw new Error(res.data.error || "Failed to mark attendance");
+          }
         } catch (err: any) {
+          console.error("Attendance scan error:", err);
           setScanStatus('error');
-          setErrorMsg(err.response?.data?.error || "Scanning failed");
+          setIsScanning(false);
+          const msg = err.response?.data?.error || err.message || "Scanning failed";
+          setErrorMsg(msg);
+          // Try to clear if it wasn't cleared yet
+          try { scanner.clear(); } catch(e) {}
         }
-      }, (errorMessage) => {
-        // console.warn(errorMessage);
+      };
+
+      scanner.render(onScanSuccess, (errorMessage) => {
+        // Ignore constant scanning failures (normal behavior of library while searching)
+        if (errorMessage.includes("No QR code found")) return; // Very common
+        console.debug("Scanner info:", errorMessage);
       });
     }, 100);
   };
