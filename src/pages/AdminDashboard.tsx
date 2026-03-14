@@ -409,7 +409,7 @@ const AdminDashboardHome = ({ stats, qrSession, onGenerateQR, analytics }: any) 
 
 const TraineesSection = ({ data, onAddTrainee, onDeleteTrainee }: any) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newTrainee, setNewTrainee] = useState({ email: '', group_name: 'Organic Farming', status: 'Active' });
+  const [newTrainee, setNewTrainee] = useState({ name: '', email: '', group_name: 'Organic Farming', status: 'Active' });
 
   // Helper for skill level based on mock efficiency
   const getSkillInfo = (eff: string) => {
@@ -442,7 +442,7 @@ const TraineesSection = ({ data, onAddTrainee, onDeleteTrainee }: any) => {
     };
     onAddTrainee(generated);
     setIsModalOpen(false);
-    setNewTrainee({ email: '', group_name: 'Organic Farming', status: 'Active' });
+    setNewTrainee({ name: '', email: '', group_name: 'Organic Farming', status: 'Active' });
   };
 
   return (
@@ -469,6 +469,18 @@ const TraineesSection = ({ data, onAddTrainee, onDeleteTrainee }: any) => {
             </div>
 
             <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label className="text-sm font-bold block mb-2">Name</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g. Arun Kumar"
+                  value={newTrainee.name}
+                  onChange={(e) => setNewTrainee({ ...newTrainee, name: e.target.value })}
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}
+                />
+              </div>
+
               <div style={{ marginBottom: '1.5rem' }}>
                 <label className="text-sm font-bold block mb-2">Email ID</label>
                 <input 
@@ -521,6 +533,7 @@ const TraineesSection = ({ data, onAddTrainee, onDeleteTrainee }: any) => {
           <thead>
             <tr>
               <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '120px' }}>USER ID</th>
+              <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '150px' }}>NAME</th>
               <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '200px' }}>EMAIL ID</th>
               <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '120px' }}>PASSWORD</th>
               <th style={{ background: '#f8fafc', padding: '1.25rem', minWidth: '150px' }}>PROGRAM</th>
@@ -540,7 +553,8 @@ const TraineesSection = ({ data, onAddTrainee, onDeleteTrainee }: any) => {
                   <td style={{ padding: '1.25rem' }}>
                     <span style={{ fontWeight: 800, color: 'var(--primary)' }}>#{row.traineeId || (10000 + row.id)}</span>
                   </td>
-                  <td style={{ padding: '1.25rem', color: '#64748b', fontWeight: 600 }}>{row.email || `${row.name?.toLowerCase().replace(' ', '')}@farm.com`}</td>
+                  <td style={{ padding: '1.25rem', fontWeight: 700, color: '#1e293b' }}>{row.name || "Trainee User"}</td>
+                  <td style={{ padding: '1.25rem', color: '#64748b', fontWeight: 600 }}>{row.email || `${(row.name || '').toLowerCase().replace(' ', '')}@farm.com`}</td>
                   <td style={{ padding: '1.25rem' }}>
                     <code style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', letterSpacing: '1px' }}>{row.password || 'AB12'}</code>
                   </td>
